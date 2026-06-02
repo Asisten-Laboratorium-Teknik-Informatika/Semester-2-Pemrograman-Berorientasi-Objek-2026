@@ -23,7 +23,7 @@ public class Main {
 
         do {
             System.out.println("\n==============================================");
-            System.out.println("                   TOKO APA LAH               ");
+            System.out.println("               InforEn Fashion                ");
             System.out.println("==============================================");
             System.out.println("1. MANAJEMEN DATA");
             System.out.println("2. OPERASIONAL PENJUALAN");
