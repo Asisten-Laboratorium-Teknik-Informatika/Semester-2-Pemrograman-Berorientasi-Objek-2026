@@ -23,9 +23,9 @@ public class Main {
 
         do {
             System.out.println("\n==============================================");
-            System.out.println("   SISTEM ERP TOKO FASHION (FULL MANAGEMENT)   ");
+            System.out.println("                   TOKO APA LAH               ");
             System.out.println("==============================================");
-            System.out.println("1. MANAJEMEN DATA MASTER");
+            System.out.println("1. MANAJEMEN DATA");
             System.out.println("2. OPERASIONAL PENJUALAN");
             System.out.println("3. DISTRIBUSI LOGISTIK");
             System.out.println("4. RANTAI PASOK / STOK");
@@ -67,10 +67,10 @@ public class Main {
         int ops = scanner.nextInt(); scanner.nextLine();
 
         System.out.println("\n--- PILIHAN OPERASI CRUD ---");
-        System.out.println("[1] Tambah Data Baru");
-        System.out.println("[2] Tampilkan Semua");
-        System.out.println("[3] Ubah Data");
-        System.out.println("[4] Hapus Data");
+        System.out.println("1. Tambah Data Baru");
+        System.out.println("2. Tampilkan Semua");
+        System.out.println("3. Ubah Data");
+        System.out.println("4. Hapus Data");
         System.out.print("Pilih Aksi (1-4): ");
         int aksi = scanner.nextInt(); scanner.nextLine();
 
