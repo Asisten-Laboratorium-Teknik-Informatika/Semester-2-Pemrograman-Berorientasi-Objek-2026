@@ -90,7 +90,6 @@ public class ProdukDAO {
     }
 
     public void tampilkanProdukPremium() throws SQLException {
-        // Menggunakan Subquery: (SELECT AVG(harga) FROM produk)
         String sql = "SELECT id_produk, nama_produk, harga FROM produk " +
                     "WHERE harga > (SELECT AVG(harga) FROM produk)";
                     
