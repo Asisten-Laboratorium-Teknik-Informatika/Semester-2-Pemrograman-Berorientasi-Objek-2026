@@ -67,10 +67,10 @@ public class Main {
         int ops = scanner.nextInt(); scanner.nextLine();
 
         System.out.println("\n--- PILIHAN OPERASI CRUD ---");
-        System.out.println("1. Tambah Data Baru");
-        System.out.println("2. Tampilkan Semua");
-        System.out.println("3. Ubah Data");
-        System.out.println("4. Hapus Data");
+        System.out.println("[1] Tambah Data Baru");
+        System.out.println("[2] Tampilkan Semua");
+        System.out.println("[3] Ubah Data");
+        System.out.println("[4] Hapus Data");
         System.out.print("Pilih Aksi (1-4): ");
         int aksi = scanner.nextInt(); scanner.nextLine();
 
@@ -239,6 +239,8 @@ public class Main {
         System.out.println("\n--- LAPORAN MONITORING EXECUTIVE ---");
         System.out.println("1. Akumulasi Total Omzet Penjualan");
         System.out.println("2. Cek Alarm Produk Limit (Stok < 5 Pcs)");
+        System.out.println("3. Tampilkan Produk Premium");
+        System.out.println("4. Cetak Logistik Distribusi Toko");
         System.out.print("Pilih Opsi: ");
         int ops = scanner.nextInt(); scanner.nextLine();
 
@@ -255,7 +257,13 @@ public class Main {
                 for (Produk p : menipis) {
                     System.out.println("⚠ ID [" + p.getIdProduk() + "] " + p.getNamaProduk() + " Sisa " + p.getStok() + " Pcs!");
                 }
-            }
+            } 
+        } else if (ops == 3) {
+            produkDAO.tampilkanProdukPremium();
+        } else if (ops == 4) {
+            pengirimanDAO.tampilkanLaporanLogistikLengkap();
+        } else {
+            System.out.println("Opsi tidak valid.");
         }
     }
 
