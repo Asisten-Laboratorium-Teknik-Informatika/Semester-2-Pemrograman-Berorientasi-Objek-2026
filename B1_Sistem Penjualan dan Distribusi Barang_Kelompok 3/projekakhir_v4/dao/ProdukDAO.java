@@ -88,4 +88,31 @@ public class ProdukDAO {
             ps.executeUpdate();
         }
     }
+
+    public void tampilkanProdukPremium() throws SQLException {
+        // Menggunakan Subquery: (SELECT AVG(harga) FROM produk)
+        String sql = "SELECT id_produk, nama_produk, harga FROM produk " +
+                    "WHERE harga > (SELECT AVG(harga) FROM produk)";
+                    
+        try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
+            System.out.println("\n==================================================");
+            System.out.println("    DAFTAR PRODUK PREMIUM (DI ATAS RATA-RATA)   ");
+            System.out.println("==================================================");
+            
+            boolean adaData = false;
+            while (rs.next()) {
+                adaData = true;
+                System.out.printf("- [%s] %-25s : Rp%,.2f\n", 
+                    rs.getString("id_produk"), 
+                    rs.getString("nama_produk"), 
+                    rs.getDouble("harga")
+                );
+            }
+            
+            if (!adaData) {
+                System.out.println("Belum ada data produk di atas rata-rata.");
+            }
+            System.out.println("==================================================");
+        }
+    }
 }
