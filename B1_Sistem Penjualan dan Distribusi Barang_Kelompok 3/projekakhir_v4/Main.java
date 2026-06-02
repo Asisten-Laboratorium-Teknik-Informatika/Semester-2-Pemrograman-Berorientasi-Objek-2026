@@ -58,7 +58,7 @@ public class Main {
     }
 
     private static void menuDataMaster() throws SQLException {
-        System.out.println("\n--- KATEGORI MANAJEMEN DATA MASTER ---");
+        System.out.println("\n--- KATEGORI MANAJEMEN DATA ---");
         System.out.println("1. Master Data Pelanggan (Member)");
         System.out.println("2. Master Data Karyawan (Staff)");
         System.out.println("3. Master Data Kurir (Ekspedisi)");
@@ -67,10 +67,10 @@ public class Main {
         int ops = scanner.nextInt(); scanner.nextLine();
 
         System.out.println("\n--- PILIHAN OPERASI CRUD ---");
-        System.out.println("[1] Tambah Data Baru");
-        System.out.println("[2] Tampilkan Semua");
-        System.out.println("[3] Ubah Data");
-        System.out.println("[4] Hapus Data");
+        System.out.println("1. Tambah Data Baru");
+        System.out.println("2. Tampilkan Semua");
+        System.out.println("3. Ubah Data");
+        System.out.println("4. Hapus Data");
         System.out.print("Pilih Aksi (1-4): ");
         int aksi = scanner.nextInt(); scanner.nextLine();
 
@@ -166,6 +166,7 @@ public class Main {
         System.out.println("\n--- OPERASIONAL PENJUALAN KASIR ---");
         System.out.println("1. Buat Nota Penjualan Baru");
         System.out.println("2. Tampilkan Katalog Produk Fashion");
+        System.out.println("3. Cetak Struk / Nota Belanja");
         System.out.print("Pilih Opsi: ");
         int ops = scanner.nextInt(); scanner.nextLine();
 
@@ -180,6 +181,11 @@ public class Main {
             System.out.println(">> Sukses: Transaksi Penjualan Berhasil Dicatat!");
         } else if (ops == 2) {
             tampilkanProduk();
+        } else if (ops == 3) { 
+            System.out.println("\n--- PENCETAKAN STRUK NOTA BELANJA ---");
+            System.out.print("Masukkan ID Transaksi Penjualan: ");
+            String idNota = scanner.nextLine();
+            penjualanDAO.cetakNotaTransaksi(idNota);
         }
     }
 
