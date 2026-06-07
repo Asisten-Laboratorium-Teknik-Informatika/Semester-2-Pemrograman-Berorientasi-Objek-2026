@@ -1,18 +1,43 @@
 package Entitas;
 
+import Fitur.Tampilan;
 import Koneksi.Koneksi;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.util.Scanner;
 
+/**
+ * Class TahunAkademik.
+ *
+ * ENCAPSULATION: Field private, logika validasi terenkapsulasi.
+ */
 public class TahunAkademik {
-    public void tampilkanTahunAktif() {
-        String sql = "SELECT * FROM b1.view_tahun_aktif";
 
+    // ===================== FIELD =====================
+    private String idTahun;
+    private String tahun;
+    private String semesterAktif;
+    private String status;
+
+    // ===================== CONSTRUCTOR =====================
+    public TahunAkademik() {}
+
+    // ===================== GETTER & SETTER =====================
+    public String getIdTahun()      { return idTahun; }
+    public String getTahun()        { return tahun; }
+    public String getSemesterAktif(){ return semesterAktif; }
+    public String getStatus()       { return status; }
+
+    public void setIdTahun(String v)       { this.idTahun = v; }
+    public void setTahun(String v)         { this.tahun = v; }
+    public void setSemesterAktif(String v) { this.semesterAktif = v; }
+    public void setStatus(String v)        { this.status = v; }
+
+    // ===================== TAMPILKAN TAHUN AKTIF =====================
+    public void tampilkanTahunAktif() {
         try (Connection conn = Koneksi.connect();
-            PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(
+                 "SELECT * FROM b1.view_tahun_aktif")) {
 
             ResultSet rs = ps.executeQuery();
             System.out.println("\n===== TAHUN AKADEMIK AKTIF =====");
@@ -22,45 +47,40 @@ public class TahunAkademik {
                 System.out.println("Semester : " + rs.getString("semester_aktif"));
                 System.out.println("Status   : " + rs.getString("status"));
             } else {
-                System.out.println("Tidak ada tahun akademik aktif.");
+                Tampilan.peringatan("Tidak ada tahun akademik aktif.");
             }
             System.out.println("================================");
 
         } catch (Exception e) {
+            Tampilan.gagal("Gagal menampilkan tahun akademik!");
             e.printStackTrace();
         }
     }
 
+    // ===================== GET ID TAHUN AKTIF =====================
     public String getIdTahunAktif() {
-        String sql = "SELECT id_tahun FROM b1.view_tahun_aktif LIMIT 1";
-
         try (Connection conn = Koneksi.connect();
-            PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(
+                 "SELECT id_tahun FROM b1.view_tahun_aktif LIMIT 1")) {
 
             ResultSet rs = ps.executeQuery();
-            
-            if (rs.next()) {
-                return rs.getString("id_tahun");
-            }
+            return rs.next() ? rs.getString("id_tahun") : null;
 
         } catch (Exception e) {
             e.printStackTrace();
+            return null;
         }
-        return null;
     }
 
+    // ===================== GET INFO TAHUN AKTIF =====================
     public String[] getInfoTahunAktif() {
-        String sql = "SELECT tahun, semester_aktif FROM b1.view_tahun_aktif LIMIT 1";
-            
         try (Connection conn = Koneksi.connect();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
-                ResultSet rs = ps.executeQuery();
-            
-                if (rs.next()) {
-                return new String[]{
-                    rs.getString("tahun"),
-                    rs.getString("semester_aktif")
-                };
+             PreparedStatement ps = conn.prepareStatement(
+                 "SELECT tahun, semester_aktif FROM b1.view_tahun_aktif LIMIT 1")) {
+
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return new String[]{ rs.getString("tahun"), rs.getString("semester_aktif") };
             }
 
         } catch (Exception e) {
@@ -69,123 +89,80 @@ public class TahunAkademik {
         return null;
     }
 
-    public static void main(String[] args) {
-        Scanner input = new Scanner(System.in);
-
+    // ===================== TAMBAH TAHUN AKADEMIK =====================
+    /**
+     * Dipanggil dari Dashboard (Admin → Data Master).
+     * Menggantikan main() lama.
+     */
+    public static void tambahTahunAkademik() {
         System.out.println("=== DATA TAHUN AKADEMIK ===\n");
-        System.out.print("ID Tahun: ");                String id_tahun = input.nextLine().trim();
-        System.out.print("Tahun: ");                   String tahun = input.nextLine().trim();
-        System.out.print("Semester (Ganjil/Genap): "); String semester_aktif = input.nextLine().trim();
-        System.out.print("Status (Aktif/Nonaktif): "); String status = input.nextLine().trim();
+        System.out.print("ID Tahun                 : "); String idTahun      = Fitur.Dashboard.input.nextLine().trim();
+        System.out.print("Tahun (misal 2025/2026)  : "); String tahun        = Fitur.Dashboard.input.nextLine().trim();
+        System.out.print("Semester (Ganjil/Genap)  : "); String semester     = Fitur.Dashboard.input.nextLine().trim();
+        System.out.print("Status (Aktif/Nonaktif)  : "); String status       = Fitur.Dashboard.input.nextLine().trim();
 
-        if (id_tahun.isEmpty()
-                || tahun.isEmpty()
-                || semester_aktif.isEmpty()
-                || status.isEmpty()) {
-
-            System.out.println("Semua data wajib diisi!");
-            return;
+        if (idTahun.isEmpty() || tahun.isEmpty() || semester.isEmpty() || status.isEmpty()) {
+            Tampilan.gagal("Semua data wajib diisi!"); return;
         }
 
         if (!tahun.matches("\\d{4}/\\d{4}")) {
-            System.out.println(
-                "Format tahun akademik harus seperti 2025/2026!"
-            );
-            return;
+            Tampilan.gagal("Format tahun harus seperti 2025/2026!"); return;
         }
 
-        semester_aktif =
-            semester_aktif.substring(0, 1).toUpperCase()
-            + semester_aktif.substring(1).toLowerCase();
+        // Normalisasi
+        semester = semester.substring(0, 1).toUpperCase() + semester.substring(1).toLowerCase();
+        status   = status.substring(0, 1).toUpperCase()   + status.substring(1).toLowerCase();
 
-        status =
-            status.substring(0, 1).toUpperCase()
-            + status.substring(1).toLowerCase();
-
-        if (!semester_aktif.equals("Ganjil")
-            && !semester_aktif.equals("Genap")) {
-
-            System.out.println("Semester hanya boleh Ganjil atau Genap!");
-            return;
+        if (!semester.equals("Ganjil") && !semester.equals("Genap")) {
+            Tampilan.gagal("Semester hanya boleh Ganjil atau Genap!"); return;
+        }
+        if (!status.equals("Aktif") && !status.equals("Nonaktif")) {
+            Tampilan.gagal("Status hanya boleh Aktif atau Nonaktif!"); return;
         }
 
-        if (!status.equals("Aktif")
-                && !status.equals("Nonaktif")) {
+        try (Connection conn = Koneksi.connect()) {
+            if (conn == null) { Tampilan.gagal("Koneksi gagal!"); return; }
 
-            System.out.println(
-                "Status hanya boleh Aktif atau Nonaktif!"
-            );
-            return;
-        }
-
-        try {Connection conn = Koneksi.connect();
-            if (conn == null) {
-                System.out.println("Koneksi gagal!");
-                return;
+            // Cek ID duplikat
+            PreparedStatement psCekId = conn.prepareStatement(
+                "SELECT COUNT(*) FROM b1.tahun_akademik WHERE id_tahun = ?");
+            psCekId.setString(1, idTahun);
+            ResultSet rsId = psCekId.executeQuery();
+            if (rsId.next() && rsId.getInt(1) > 0) {
+                Tampilan.gagal("ID Tahun Akademik sudah digunakan!"); return;
             }
-            
-            String cekId =
-                "SELECT COUNT(*) " +
-                "FROM b1.tahun_akademik " +
-                "WHERE id_tahun = ?";
 
-            try (PreparedStatement ps = conn.prepareStatement(cekId)) {
-
-                ps.setString(1, id_tahun);
-
-                ResultSet rs = ps.executeQuery();
-
-                if (rs.next() && rs.getInt(1) > 0) {
-                    System.out.println(
-                        "ID Tahun Akademik sudah digunakan!"
-                    );
+            // Cek tidak ada yang aktif jika status baru = Aktif
+            if (status.equals("Aktif")) {
+                PreparedStatement psCekAktif = conn.prepareStatement(
+                    "SELECT COUNT(*) FROM b1.tahun_akademik WHERE status = 'Aktif'");
+                ResultSet rsAktif = psCekAktif.executeQuery();
+                if (rsAktif.next() && rsAktif.getInt(1) > 0) {
+                    Tampilan.gagal("Masih ada tahun akademik aktif. Nonaktifkan dulu sebelum menambah yang baru.");
                     return;
                 }
             }
 
-            if (status.equals("Aktif")) {
+            PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO b1.tahun_akademik(id_tahun, tahun, semester_aktif, status) " +
+                "VALUES(?, ?, ?::b1.semester_aktif_enum, ?::status_enum)");
+            ps.setString(1, idTahun);
+            ps.setString(2, tahun);
+            ps.setString(3, semester);
+            ps.setString(4, status);
 
-                String cekAktif =
-                    "SELECT COUNT(*) " +
-                    "FROM b1.tahun_akademik " +
-                    "WHERE status = 'Aktif'";
-
-                try (PreparedStatement ps =
-                         conn.prepareStatement(cekAktif)) {
-
-                    ResultSet rs = ps.executeQuery();
-
-                    if (rs.next() && rs.getInt(1) > 0) {
-
-                        System.out.println(
-                            "Masih ada tahun akademik yang aktif.\n" +
-                            "Nonaktifkan terlebih dahulu sebelum menambah yang baru."
-                        );
-                        return;
-                    }
-                }
-            }
-
-            String query =
-            "INSERT INTO b1.tahun_akademik(id_tahun, tahun, semester_aktif, status) " +
-            "VALUES(?, ?, ?::semester_aktif_enum, ?::status_enum)";
-        
-            PreparedStatement ps_tahun_akademik = conn.prepareStatement(query);
-            ps_tahun_akademik.setString(1, id_tahun);        ps_tahun_akademik.setString(2, tahun);
-            ps_tahun_akademik.setString(3, semester_aktif);  ps_tahun_akademik.setString(4, status);
-
-            int baris = ps_tahun_akademik.executeUpdate();
-            
-            if (baris > 0) {
-                System.out.println("\n=== DATA TAHUN AKADEMIK BERHASIL DISIMPAN ===");
-                System.out.println("ID Tahun : " + id_tahun);
+            if (ps.executeUpdate() > 0) {
+                Tampilan.sukses("\n=== DATA TAHUN AKADEMIK BERHASIL DISIMPAN ===");
+                System.out.println("ID Tahun : " + idTahun);
                 System.out.println("Tahun    : " + tahun);
-                System.out.println("Semester : " + semester_aktif);
+                System.out.println("Semester : " + semester);
                 System.out.println("Status   : " + status);
+            } else {
+                Tampilan.gagal("Data gagal disimpan.");
             }
 
         } catch (Exception e) {
-            System.out.println("=== Terjadi kesalahan pada data! ===\n" + e.getMessage());
+            Tampilan.gagal("Terjadi kesalahan: " + e.getMessage());
             e.printStackTrace();
         }
     }

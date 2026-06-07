@@ -99,7 +99,7 @@ public class Nilai {
             if (rows.isEmpty()) {
                 Tampilan.peringatan("\nBelum ada nilai.");
             } else {
-                String[] headers = {"Mata Kuliah", "Tugas", "UTS", "UAS", "Akhir", "Predikat"};
+                String[] headers = {"Mata Kuliah", "SKS", "Tugas", "UTS", "UAS", "Akhir", "Predikat"};
                 Tampilan.tampilTabel(headers, rows.toArray(new String[0][]));
             }
 
@@ -114,15 +114,20 @@ public class Nilai {
         Scanner input = new Scanner(System.in);
 
         try (Connection conn = Koneksi.connect()) {
-            String sqlKRS =
-                "SELECT dk.id_detail_krs, m.nim, m.nama, mk.nama_mata_kuliah " +
-                "FROM b1.detail_krs dk " +
-                "JOIN b1.krs k           ON dk.id_krs = k.id_krs " +
-                "JOIN b1.mahasiswa m     ON k.nim = m.nim " +
-                "JOIN b1.kelas_kuliah kk ON dk.id_kelas_kuliah = kk.id_kelas_kuliah " +
-                "JOIN b1.mata_kuliah mk  ON kk.id_mata_kuliah = mk.id_mata_kuliah " +
-                "WHERE kk.nidn = ? AND k.status_persetujuan = 'Disetujui' " +
-                "AND dk.id_detail_krs NOT IN (SELECT id_detail_krs FROM b1.nilai)";
+        String sqlKRS =
+            "SELECT dk.id_detail_krs, " +
+            "m.nim, " +
+            "m.nama, " +
+            "kk.nama_kelas, " +
+            "mk.nama_mata_kuliah " +
+            "FROM b1.detail_krs dk " +
+            "JOIN b1.krs k           ON dk.id_krs = k.id_krs " +
+            "JOIN b1.mahasiswa m     ON k.nim = m.nim " +
+            "JOIN b1.kelas_kuliah kk ON dk.id_kelas_kuliah = kk.id_kelas_kuliah " +
+            "JOIN b1.mata_kuliah mk  ON kk.id_mata_kuliah = mk.id_mata_kuliah " +
+            "WHERE kk.nidn = ? " +
+            "AND k.status_persetujuan = 'Disetujui' " +
+            "AND dk.id_detail_krs NOT IN (SELECT id_detail_krs FROM b1.nilai)";
 
             PreparedStatement ps1 = conn.prepareStatement(sqlKRS);
             ps1.setString(1, nidn);
@@ -133,6 +138,8 @@ public class Nilai {
                 rows.add(new String[]{
                     rs.getString("id_detail_krs"),
                     rs.getString("nim"),
+                    rs.getString("nama"),
+                    rs.getString("nama_kelas"),
                     rs.getString("nama_mata_kuliah")
                 });
             }
@@ -143,10 +150,51 @@ public class Nilai {
                 return;
             }
 
-            String[] headers = {"ID Detail KRS", "NIM", "Mata Kuliah"};
+            String[] headers = {
+                "ID Detail KRS",
+                "NIM",
+                "Nama Mahasiswa",
+                "Kelas",
+                "Mata Kuliah"
+            };
+            
             Tampilan.tampilTabel(headers, rows.toArray(new String[0][]));
 
             System.out.print("Masukkan ID Detail KRS: "); String idDetailKRS = input.nextLine().trim();
+
+            String sqlInfo =
+                "SELECT dk.id_detail_krs, " +
+                "m.nim, " +
+                "m.nama, " +
+                "mk.nama_mata_kuliah, " +
+                "kk.id_kelas_kuliah " +
+                "FROM b1.detail_krs dk " +
+                "JOIN b1.krs k           ON dk.id_krs = k.id_krs " +
+                "JOIN b1.mahasiswa m     ON k.nim = m.nim " +
+                "JOIN b1.kelas_kuliah kk ON dk.id_kelas_kuliah = kk.id_kelas_kuliah " +
+                "JOIN b1.mata_kuliah mk  ON kk.id_mata_kuliah = mk.id_mata_kuliah " +
+                "WHERE dk.id_detail_krs = ?";
+
+            PreparedStatement psInfo = conn.prepareStatement(sqlInfo);
+            psInfo.setString(1, idDetailKRS);
+
+            ResultSet rsInfo = psInfo.executeQuery();
+
+            if(rsInfo.next()) {
+
+                System.out.println("\n===== DATA MAHASISWA =====");
+                System.out.println("ID Detail KRS : " + rsInfo.getString("id_detail_krs"));
+                System.out.println("NIM           : " + rsInfo.getString("nim"));
+                System.out.println("Nama          : " + rsInfo.getString("nama"));
+                System.out.println("Kelas         : " + rsInfo.getString("id_kelas_kuliah"));
+                System.out.println("Mata Kuliah   : " + rsInfo.getString("nama_mata_kuliah"));
+                System.out.println("==========================\n");
+
+            } else {
+                Tampilan.gagal("ID Detail KRS tidak ditemukan!");
+                return;
+            }
+            
             System.out.print("Nilai Tugas (0-100): ");    String nilaiTugas = input.nextLine().trim();
             System.out.print("Nilai UTS (0-100): ");      String nilaiUTS = input.nextLine().trim();
             System.out.print("Nilai UAS (0-100): ");      String nilaiUAS = input.nextLine().trim();
@@ -239,11 +287,7 @@ public class Nilai {
     private double getBobot(String predikat) {
         switch (predikat) {
             case "A":   return 4.0;
-            case "A-":  return 3.7;
-            case "B+":  return 3.3;
             case "B":   return 3.0;
-            case "B-":  return 2.7;
-            case "C+":  return 2.3;
             case "C":   return 2.0;
             case "D":   return 1.0;
             default:    return 0.0;

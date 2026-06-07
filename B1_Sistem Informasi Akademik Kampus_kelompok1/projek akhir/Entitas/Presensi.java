@@ -30,7 +30,7 @@ public class Presensi {
 
             String query =
             "INSERT INTO b1.presensi(id_presensi, id_detail_krs, id_jadwal, status_kehadiran, pertemuan) " +
-            "VALUES(?, ?, ?, ?::status_kehadiran_enum, ?)";
+            "VALUES(?, ?, ?, ?::b1.status_kehadiran_enum, ?)";
 
             PreparedStatement ps = conn.prepareStatement(query);
             ps.setString(1, id_presensi); ps.setString(2, id_detail_krs);
@@ -226,7 +226,7 @@ public class Presensi {
                 String idPresensi = String.format("PR%08d", System.currentTimeMillis() % 100_000_000L);
                 String sqlInsert =
                 "INSERT INTO b1.presensi(id_presensi, id_detail_krs, id_jadwal, status_kehadiran, pertemuan) " +
-                "VALUES(?, ?, ?, ?::status_kehadiran_enum, ?)";
+                "VALUES(?, ?, ?, ?::b1.status_kehadiran_enum, ?)";
 
                 PreparedStatement ps4 = conn.prepareStatement(sqlInsert);
                 ps4.setString(1, idPresensi); ps4.setString(2, mhs[0]);

@@ -2,6 +2,7 @@ package Entitas;
 
 import Fitur.Tampilan;
 import Koneksi.Koneksi;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,19 +12,62 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+/**
+ * Class Jadwal — entitas mandiri (bukan turunan Pengguna).
+ *
+ * ENCAPSULATION: Semua field private, akses via getter/setter.
+ */
 public class Jadwal {
-    public static void main(String[] args) {
+
+    // ===================== FIELD (private → Encapsulation) =====================
+    private String idJadwal;
+    private String idKelasKuliah;
+    private String hari;
+    private Time   jamMulai;
+    private Time   jamSelesai;
+
+    // ===================== CONSTRUCTOR =====================
+    public Jadwal() {}
+
+    public Jadwal(String idJadwal, String idKelasKuliah,
+                  String hari, Time jamMulai, Time jamSelesai) {
+        this.idJadwal      = idJadwal;
+        this.idKelasKuliah = idKelasKuliah;
+        this.hari          = hari;
+        this.jamMulai      = jamMulai;
+        this.jamSelesai    = jamSelesai;
+    }
+
+    // ===================== GETTER & SETTER (Encapsulation) =====================
+    public String getIdJadwal()      { return idJadwal; }
+    public String getIdKelasKuliah() { return idKelasKuliah; }
+    public String getHari()          { return hari; }
+    public Time   getJamMulai()      { return jamMulai; }
+    public Time   getJamSelesai()    { return jamSelesai; }
+
+    public void setIdJadwal(String idJadwal)           { this.idJadwal = idJadwal; }
+    public void setIdKelasKuliah(String idKelasKuliah) { this.idKelasKuliah = idKelasKuliah; }
+    public void setHari(String hari)                   { this.hari = hari; }
+    public void setJamMulai(Time jamMulai)             { this.jamMulai = jamMulai; }
+    public void setJamSelesai(Time jamSelesai)         { this.jamSelesai = jamSelesai; }
+
+    // ===================== TAMBAH JADWAL (pengganti main) =====================
+    /**
+     * Method static untuk input jadwal baru dari konsol.
+     * Dipanggil dari Dashboard.menuDataMaster() oleh Admin.
+     * Semua logika validasi dan query SQL tidak berubah.
+     */
+    public static void tambahJadwal() {
         Scanner input = new Scanner(System.in);
 
         System.out.println("=== DATA JADWAL ===\n");
         System.out.print("ID Jadwal: ");           String id_jadwal       = input.nextLine().trim();
         System.out.print("ID Kelas Kuliah: ");     String id_kelas_kuliah = input.nextLine().trim();
-        System.out.print("ID Ruangan: ");          String id_ruangan      = input.nextLine().trim();
         System.out.print("Hari (Senin-Jumat): ");  String hari            = input.nextLine().trim();
         System.out.print("Jam Mulai (HH:MM): ");   String jam_mulai       = input.nextLine().trim();
         System.out.print("Jam Selesai (HH:MM): "); String jam_selesai     = input.nextLine().trim();
 
-        if (id_jadwal.isEmpty() || id_kelas_kuliah.isEmpty() || id_ruangan.isEmpty()
+        if (id_jadwal.isEmpty() || id_kelas_kuliah.isEmpty()
                 || hari.isEmpty() || jam_mulai.isEmpty() || jam_selesai.isEmpty()) {
             System.out.println("Semua data wajib diisi!");
             return;
@@ -41,8 +85,8 @@ public class Jadwal {
         Time jamSelesai;
 
         try {
-            jamMulai   = Time.valueOf(jam_mulai + ":00");   // ← diperbaiki
-            jamSelesai = Time.valueOf(jam_selesai + ":00"); // ← diperbaiki
+            jamMulai   = Time.valueOf(jam_mulai   + ":00");
+            jamSelesai = Time.valueOf(jam_selesai + ":00");
         } catch (Exception e) {
             System.out.println("Format jam harus HH:MM");
             return;
@@ -56,41 +100,41 @@ public class Jadwal {
         try (Connection conn = Koneksi.connect()) {
             if (conn == null) { System.out.println("Koneksi database gagal!"); return; }
 
+            // Cek duplikat ID jadwal
             String cekJadwal = "SELECT COUNT(*) FROM b1.jadwal WHERE id_jadwal = ?";
             try (PreparedStatement ps = conn.prepareStatement(cekJadwal)) {
                 ps.setString(1, id_jadwal);
                 ResultSet rs = ps.executeQuery();
-                if (rs.next() && rs.getInt(1) > 0) { System.out.println("ID Jadwal sudah digunakan!"); return; }
+                if (rs.next() && rs.getInt(1) > 0) {
+                    System.out.println("ID Jadwal sudah digunakan!"); return;
+                }
             }
 
+            // Cek kelas kuliah ada
             String cekKelas = "SELECT COUNT(*) FROM b1.kelas_kuliah WHERE id_kelas_kuliah = ?";
             try (PreparedStatement ps = conn.prepareStatement(cekKelas)) {
                 ps.setString(1, id_kelas_kuliah);
                 ResultSet rs = ps.executeQuery();
-                if (rs.next() && rs.getInt(1) == 0) { System.out.println("ID Kelas Kuliah tidak ditemukan!"); return; }
-            }
-
-            String cekRuangan = "SELECT COUNT(*) FROM b1.ruangan WHERE id_ruangan = ?";
-            try (PreparedStatement ps = conn.prepareStatement(cekRuangan)) {
-                ps.setString(1, id_ruangan);
-                ResultSet rs = ps.executeQuery();
-                if (rs.next() && rs.getInt(1) == 0) { System.out.println("ID Ruangan tidak ditemukan!"); return; }
+                if (rs.next() && rs.getInt(1) == 0) {
+                    System.out.println("ID Kelas Kuliah tidak ditemukan!"); return;
+                }
             }
 
             String query =
-                "INSERT INTO b1.jadwal(id_jadwal, id_kelas_kuliah, id_ruangan, hari, jam_mulai, jam_selesai) " + // ← diperbaiki
-                "VALUES (?, ?, ?, ?::hari_enum, ?, ?)";
+                "INSERT INTO b1.jadwal(id_jadwal, id_kelas_kuliah, hari, jam_mulai, jam_selesai) " +
+                "VALUES (?, ?, ?::b1.hari_enum, ?, ?)";
 
             try (PreparedStatement ps = conn.prepareStatement(query)) {
-                ps.setString(1, id_jadwal);  ps.setString(2, id_kelas_kuliah);
-                ps.setString(3, id_ruangan); ps.setString(4, hari);
-                ps.setTime(5, jamMulai);     ps.setTime(6, jamSelesai);
+                ps.setString(1, id_jadwal);
+                ps.setString(2, id_kelas_kuliah);
+                ps.setString(3, hari);
+                ps.setTime(4, jamMulai);
+                ps.setTime(5, jamSelesai);
 
                 if (ps.executeUpdate() > 0) {
                     System.out.println("\n=== DATA JADWAL BERHASIL DISIMPAN ===");
                     System.out.println("ID Jadwal       : " + id_jadwal);
                     System.out.println("ID Kelas Kuliah : " + id_kelas_kuliah);
-                    System.out.println("ID Ruangan      : " + id_ruangan);
                     System.out.println("Hari            : " + hari);
                     System.out.println("Jam Mulai       : " + jam_mulai);
                     System.out.println("Jam Selesai     : " + jam_selesai);

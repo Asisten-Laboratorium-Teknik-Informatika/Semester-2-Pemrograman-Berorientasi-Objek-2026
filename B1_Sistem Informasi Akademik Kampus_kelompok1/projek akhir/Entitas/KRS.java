@@ -9,7 +9,52 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+/**
+ * Class KRS — entitas mandiri (bukan turunan Pengguna).
+ *
+ * ENCAPSULATION: Semua field private, diakses lewat getter/setter.
+ *
+ * LOGIKA BISNIS (BARU):
+ *   - 1 KRS = semua mata kuliah dalam 1 semester sesuai prodi mahasiswa
+ *   - Disetujui oleh dosen PEMBIMBING (bukan dosen pengampu)
+ *   - Dosen pembimbing berlaku sepanjang kuliah (tidak berubah per semester)
+ *   - Mahasiswa cukup tekan "Ambil KRS" → semua kelas otomatis masuk
+ */
 public class KRS {
+
+    // ===================== FIELD (private → Encapsulation) =====================
+    private String idKrs;
+    private String nim;
+    private String idTahun;
+    private String statusPersetujuan;
+    private String nidnPembimbing;
+
+    // ===================== CONSTRUCTOR =====================
+    public KRS() {}
+
+    public KRS(String idKrs, String nim, String idTahun,
+               String statusPersetujuan, String nidnPembimbing) {
+        this.idKrs             = idKrs;
+        this.nim               = nim;
+        this.idTahun           = idTahun;
+        this.statusPersetujuan = statusPersetujuan;
+        this.nidnPembimbing    = nidnPembimbing;
+    }
+
+    // ===================== GETTER & SETTER (Encapsulation) =====================
+    public String getIdKrs()             { return idKrs; }
+    public String getNim()               { return nim; }
+    public String getIdTahun()           { return idTahun; }
+    public String getStatusPersetujuan() { return statusPersetujuan; }
+    public String getNidnPembimbing()    { return nidnPembimbing; }
+
+    public void setIdKrs(String idKrs)                         { this.idKrs = idKrs; }
+    public void setNim(String nim)                             { this.nim = nim; }
+    public void setIdTahun(String idTahun)                     { this.idTahun = idTahun; }
+    public void setStatusPersetujuan(String statusPersetujuan) { this.statusPersetujuan = statusPersetujuan; }
+    public void setNidnPembimbing(String nidnPembimbing)       { this.nidnPembimbing = nidnPembimbing; }
+
+    // ===================== HELPER PRIVATE =====================
     private static String inputWajib(Scanner input, String pesan) {
         String data;
         do {
@@ -20,8 +65,8 @@ public class KRS {
         return data;
     }
 
-    // ===================== MAIN (INSERT KRS) =====================
-    public static void main(String[] args) {
+    // ===================== TAMBAH KRS MANUAL (untuk admin/testing) =====================
+    public static void tambahKRS() {
         Scanner input = new Scanner(System.in);
 
         System.out.println("=== DATA KRS ===\n");
@@ -36,7 +81,7 @@ public class KRS {
 
             String query =
                 "INSERT INTO b1.krs(id_krs, nim, id_tahun, status_persetujuan) " +
-                "VALUES(?, ?, ?, ?::status_persetujuan_enum)";
+                "VALUES(?, ?, ?, ?::b1.status_persetujuan_enum)";
 
             PreparedStatement ps = conn.prepareStatement(query);
             ps.setString(1, id_krs);   ps.setString(2, nim);
@@ -51,58 +96,8 @@ public class KRS {
         }
     }
 
-    // ===================== LIHAT KRS =====================
-    // Hanya menampilkan KRS milik mahasiswa yang login (filter NIM)
-    // dan hanya yang sudah disetujui (filter status_persetujuan = 'Disetujui')
-    public void lihatKRS(String nim) {
-        if (nim == null || nim.trim().isEmpty()) {
-            Tampilan.gagal("NIM tidak boleh kosong!");
-            return;
-        }
 
-        try (Connection conn = Koneksi.connect()) {
-            String sql =
-                "SELECT k.id_krs, k.nim, mk.nama_mata_kuliah, " +
-                "k.tanggal_ambil, k.status_persetujuan " +
-                "FROM b1.krs k " +
-                "JOIN b1.mahasiswa m     ON k.nim = m.nim " +
-                "JOIN b1.detail_krs dk   ON k.id_krs = dk.id_krs " +
-                "JOIN b1.kelas_kuliah kk ON dk.id_kelas_kuliah = kk.id_kelas_kuliah " +
-                "JOIN b1.mata_kuliah mk  ON kk.id_mata_kuliah = mk.id_mata_kuliah " +
-                "WHERE k.nim = ? " +
-                "AND k.status_persetujuan = 'Disetujui' " +  // hanya tampilkan yang sudah disetujui
-                "ORDER BY k.tanggal_ambil DESC";
-
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setString(1, nim.trim());
-            ResultSet rs = ps.executeQuery();
-
-            List<String[]> rows = new ArrayList<>();
-            while (rs.next()) {
-                rows.add(new String[]{
-                    rs.getString("id_krs"),
-                    rs.getString("nim"),
-                    rs.getString("nama_mata_kuliah"),
-                    rs.getString("tanggal_ambil"),
-                    rs.getString("status_persetujuan")
-                });
-            }
-
-            System.out.println("\n=== DATA KRS SAYA (DISETUJUI) ===");
-            if (rows.isEmpty()) {
-                Tampilan.peringatan("\nTidak ada KRS yang sudah disetujui.");
-            } else {
-                String[] headers = {"ID KRS", "NIM", "Mata Kuliah", "Tanggal", "Status"};
-                Tampilan.tampilTabel(headers, rows.toArray(new String[0][]));
-            }
-
-        } catch (Exception e) {
-            Tampilan.gagal("Gagal menampilkan data KRS!");
-            e.printStackTrace();
-        }
-    }
-
-    // ===================== AMBIL KRS =====================
+    // ===================== AMBIL KRS (FIXED — mahasiswa pilih kelas sendiri) =====================
     public boolean ambilKRS(String nim, String idKelasKuliah) {
         if (nim == null || nim.trim().isEmpty()) {
             Tampilan.gagal("NIM tidak boleh kosong!");
@@ -116,123 +111,193 @@ public class KRS {
         nim           = nim.trim();
         idKelasKuliah = idKelasKuliah.trim();
 
-        // Cek apakah id_kelas_kuliah ada di database
         try (Connection conn = Koneksi.connect()) {
-            String cekKelas = "SELECT COUNT(*) FROM b1.kelas_kuliah WHERE id_kelas_kuliah = ?";
-            PreparedStatement psKelas = conn.prepareStatement(cekKelas);
-            psKelas.setString(1, idKelasKuliah);
-            ResultSet rsKelas = psKelas.executeQuery();
+
+            // 1. Cek kelas kuliah ada
+            PreparedStatement cekKelas = conn.prepareStatement(
+                "SELECT COUNT(*) FROM b1.kelas_kuliah WHERE id_kelas_kuliah = ?");
+            cekKelas.setString(1, idKelasKuliah);
+            ResultSet rsKelas = cekKelas.executeQuery();
             if (rsKelas.next() && rsKelas.getInt(1) == 0) {
                 Tampilan.gagal("ID Kelas Kuliah tidak ditemukan!");
                 return false;
             }
-        } catch (Exception e) {
-            Tampilan.gagal("Gagal memeriksa data kelas kuliah!");
-            e.printStackTrace();
-            return false;
-        }
 
-        // Ambil id tahun akademik yang sedang aktif
-        TahunAkademik tahunDAO = new TahunAkademik();
-        String idTahunAktif = tahunDAO.getIdTahunAktif();
-
-        if (idTahunAktif == null) {
-            Tampilan.gagal("Tidak bisa ambil KRS. Tidak ada tahun akademik aktif.");
-            return false;
-        }
-
-        // Query cek apakah mahasiswa sudah pernah ambil mata kuliah yang sama (bukan yang ditolak)
-        String cekDuplikat =
-            "SELECT COUNT(*) AS total " +
-            "FROM b1.detail_krs dk " +
-            "JOIN b1.krs k           ON dk.id_krs = k.id_krs " +
-            "JOIN b1.kelas_kuliah kk ON dk.id_kelas_kuliah = kk.id_kelas_kuliah " +
-            "WHERE k.nim = ? " +
-            "AND kk.id_mata_kuliah = ( " +
-            "   SELECT id_mata_kuliah FROM b1.kelas_kuliah WHERE id_kelas_kuliah = ? " +
-            ") " +
-            "AND k.status_persetujuan != 'Ditolak'";
-
-        // Query cek kuota kelas
-        String cekKuota =
-            "SELECT kk.kuota, " +
-            "COALESCE(( " +
-            "   SELECT COUNT(*) " +
-            "   FROM b1.detail_krs dk " +
-            "   JOIN b1.krs k ON dk.id_krs = k.id_krs " +
-            "   WHERE dk.id_kelas_kuliah = ? " +
-            "   AND k.status_persetujuan = 'Disetujui' " +
-            "),0) AS terisi " +
-            "FROM b1.kelas_kuliah kk " +
-            "JOIN b1.tahun_akademik ta ON kk.id_tahun = ta.id_tahun " +
-            "WHERE kk.id_kelas_kuliah = ? " +
-            "AND ta.status = 'Aktif'";
-
-        try (Connection conn = Koneksi.connect()) {
-            // Cek duplikat mata kuliah
-            PreparedStatement psDuplikat = conn.prepareStatement(cekDuplikat);
-            psDuplikat.setString(1, nim);
-            psDuplikat.setString(2, idKelasKuliah);
-            ResultSet rsDuplikat = psDuplikat.executeQuery();
-
-            if (rsDuplikat.next() && rsDuplikat.getInt("total") > 0) {
-                Tampilan.gagal("Anda sudah mengambil mata kuliah ini!");
+            // 2. ✅ Cek mahasiswa sudah ambil MATA KULIAH ini (bukan hanya kelas ini)
+            //    Cegah mahasiswa ambil Kelas A DAN Kelas B untuk matkul yang sama
+            PreparedStatement cekMatkul = conn.prepareStatement(
+                "SELECT COUNT(*) AS total " +
+                "FROM b1.detail_krs dk " +
+                "JOIN b1.krs k           ON dk.id_krs = k.id_krs " +
+                "JOIN b1.kelas_kuliah kk ON dk.id_kelas_kuliah = kk.id_kelas_kuliah " +
+                "WHERE k.nim = ? " +
+                "AND kk.id_mata_kuliah = ( " +
+                "   SELECT id_mata_kuliah FROM b1.kelas_kuliah WHERE id_kelas_kuliah = ? " +
+                ") " +
+                "AND k.status_persetujuan != 'Ditolak'");
+            cekMatkul.setString(1, nim);
+            cekMatkul.setString(2, idKelasKuliah);
+            ResultSet rsMatkul = cekMatkul.executeQuery();
+            if (rsMatkul.next() && rsMatkul.getInt("total") > 0) {
+                Tampilan.gagal("Anda sudah mengambil mata kuliah ini di kelas lain!");
                 return false;
             }
 
-            // Cek kuota kelas
-            PreparedStatement ps1 = conn.prepareStatement(cekKuota);
-            ps1.setString(1, idKelasKuliah);
-            ps1.setString(2, idKelasKuliah);
-            ResultSet rs = ps1.executeQuery();
+            // 3. Cek kuota kelas
+            PreparedStatement cekKuota = conn.prepareStatement(
+                "SELECT kk.kuota, " +
+                "COALESCE((SELECT COUNT(*) FROM b1.detail_krs dk " +
+                "          JOIN b1.krs k ON dk.id_krs = k.id_krs " +
+                "          WHERE dk.id_kelas_kuliah = ? " +
+                "          AND k.status_persetujuan = 'Disetujui'), 0) AS terisi " +
+                "FROM b1.kelas_kuliah kk " +
+                "JOIN b1.tahun_akademik ta ON kk.id_tahun = ta.id_tahun " +
+                "WHERE kk.id_kelas_kuliah = ? AND ta.status = 'Aktif'");
+            cekKuota.setString(1, idKelasKuliah);
+            cekKuota.setString(2, idKelasKuliah);
+            ResultSet rsKuota = cekKuota.executeQuery();
 
-            if (!rs.next()) {
+            if (!rsKuota.next()) {
                 Tampilan.gagal("Kelas tidak ditemukan atau bukan tahun akademik aktif.");
                 return false;
             }
 
-            int kuota  = rs.getInt("kuota");
-            int terisi = rs.getInt("terisi");
-
+            int kuota  = rsKuota.getInt("kuota");
+            int terisi = rsKuota.getInt("terisi");
             if (terisi >= kuota) {
                 Tampilan.gagal("Kelas penuh! Kuota: " + kuota + ", Terisi: " + terisi);
                 return false;
             }
 
-            // Generate ID KRS unik
-            String idKRS = String.format("KRS%07d", System.currentTimeMillis() % 10000000L);
+            // 4. Dapatkan tahun akademik aktif
+            TahunAkademik tahunDAO = new TahunAkademik();
+            String idTahunAktif = tahunDAO.getIdTahunAktif();
+            if (idTahunAktif == null) {
+                Tampilan.gagal("Tidak ada tahun akademik aktif saat ini.");
+                return false;
+            }
 
-            // Insert ke tabel krs (status default: Menunggu)
-            PreparedStatement psKRS = conn.prepareStatement(
-                "INSERT INTO b1.krs (id_krs, nim, id_tahun, tanggal_ambil) VALUES (?, ?, ?, CURRENT_DATE)");
-            psKRS.setString(1, idKRS);
-            psKRS.setString(2, nim);
-            psKRS.setString(3, idTahunAktif);
-            psKRS.executeUpdate();
+            // 5. Cek apakah mahasiswa sudah punya KRS di semester ini
+            //    Kalau sudah ada → tambah detail_krs saja (tidak buat KRS baru)
+            PreparedStatement cekKRS = conn.prepareStatement(
+                "SELECT id_krs FROM b1.krs WHERE nim = ? AND id_tahun = ?");
+            cekKRS.setString(1, nim);
+            cekKRS.setString(2, idTahunAktif);
+            ResultSet rsKRS = cekKRS.executeQuery();
 
-            // Generate ID detail KRS unik
+            String idKRS = null;
+            if (rsKRS.next()) {
+                idKRS = rsKRS.getString("id_krs");
+            }
+
+            String nidnPembimbing = null;
+
+            PreparedStatement psPembimbing = conn.prepareStatement(
+                "SELECT nidn FROM b1.dosen_pembimbing WHERE nim = ?"
+            );
+
+            psPembimbing.setString(1, nim);
+
+            ResultSet rsPembimbing = psPembimbing.executeQuery();
+
+            if (rsPembimbing.next()) {
+                nidnPembimbing = rsPembimbing.getString("nidn");
+            }
+
+            if (idKRS == null) {
+                // Buat KRS baru
+                idKRS = String.format("KRS%07d", System.currentTimeMillis() % 10000000L);
+
+                PreparedStatement psKRS = conn.prepareStatement(
+                    "INSERT INTO b1.krs (id_krs, nim, id_tahun, nidn_pembimbing, tanggal_ambil) " +
+                    "VALUES (?, ?, ?, ?, CURRENT_DATE)");
+                psKRS.setString(1, idKRS);
+                psKRS.setString(2, nim);
+                psKRS.setString(3, idTahunAktif);
+                psKRS.setString(4, nidnPembimbing);
+                psKRS.executeUpdate();
+            }
+
+            // 6. Tambah detail_krs untuk kelas yang dipilih mahasiswa
             String idDetail = String.format("DET%07d", System.currentTimeMillis() % 10000000L);
 
-            // Insert ke tabel detail_krs
             PreparedStatement psDetail = conn.prepareStatement(
-                "INSERT INTO b1.detail_krs (id_detail_krs, id_krs, id_kelas_kuliah) VALUES (?, ?, ?)");
+                "INSERT INTO b1.detail_krs (id_detail_krs, id_krs, id_kelas_kuliah) " +
+                "VALUES (?, ?, ?)");
             psDetail.setString(1, idDetail);
             psDetail.setString(2, idKRS);
             psDetail.setString(3, idKelasKuliah);
             psDetail.executeUpdate();
 
-            Tampilan.sukses("KRS berhasil diambil! Menunggu persetujuan dari dosen.");
+            Tampilan.sukses("KRS berhasil diambil! Menunggu persetujuan.");
             return true;
 
         } catch (Exception e) {
-            Tampilan.gagal("Gagal mengambil KRS!");
+            Tampilan.gagal("Gagal mengambil KRS: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
     }
 
-    // ===================== KELOLA KRS (Dosen) =====================
-    // Dosen hanya bisa melihat dan memproses KRS dari kelas yang dia ajar
+    // ===================== LIHAT KRS MAHASISWA =====================
+    public void lihatKRS(String nim) {
+        if (nim == null || nim.trim().isEmpty()) {
+            Tampilan.gagal("NIM tidak boleh kosong!");
+            return;
+        }
+
+        try (Connection conn = Koneksi.connect()) {
+            String sql =
+                "SELECT k.id_krs, ta.tahun, ta.semester_aktif, k.tanggal_ambil, " +
+                "k.status_persetujuan, d.nama AS nama_pembimbing, " +
+                "COUNT(dk.id_detail_krs) AS total_matkul " +
+                "FROM b1.krs k " +
+                "JOIN b1.tahun_akademik ta   ON k.id_tahun = ta.id_tahun " +
+                "LEFT JOIN b1.dosen d        ON k.nidn_pembimbing = d.nidn " +
+                "LEFT JOIN b1.detail_krs dk  ON k.id_krs = dk.id_krs " +
+                "WHERE k.nim = ? " +
+                "GROUP BY k.id_krs, ta.tahun, ta.semester_aktif, " +
+                "k.tanggal_ambil, k.status_persetujuan, d.nama " +
+                "ORDER BY k.tanggal_ambil DESC";
+
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setString(1, nim.trim());
+            ResultSet rs = ps.executeQuery();
+
+            List<String[]> rows = new ArrayList<>();
+            while (rs.next()) {
+                rows.add(new String[]{
+                    rs.getString("id_krs"),
+                    rs.getString("tahun") + " " + rs.getString("semester_aktif"),
+                    rs.getString("tanggal_ambil"),
+                    rs.getString("total_matkul"),
+                    rs.getString("nama_pembimbing") != null ? rs.getString("nama_pembimbing") : "-",
+                    rs.getString("status_persetujuan")
+                });
+            }
+
+            System.out.println("\n=== DATA KRS SAYA ===");
+            if (rows.isEmpty()) {
+                Tampilan.peringatan("\nBelum ada KRS yang diambil.");
+            } else {
+                String[] headers = {
+                    "ID KRS", "Tahun/Semester", "Tanggal Ambil",
+                    "Total Matkul", "Dosen Pembimbing", "Status"
+                };
+                Tampilan.tampilTabel(headers, rows.toArray(new String[0][]));
+            }
+
+        } catch (Exception e) {
+            Tampilan.gagal("Gagal menampilkan data KRS!");
+            e.printStackTrace();
+        }
+    }
+
+    // ===================== KELOLA KRS — DOSEN PEMBIMBING (Logika Baru) =====================
+    /**
+     * Hanya dosen PEMBIMBING yang bisa setujui/tolak KRS.
+     * Filter: k.nidn_pembimbing = ? (bukan kk.nidn = ? seperti logika lama)
+     */
     public void kelolaKRS(String nidn) {
         if (nidn == null || nidn.trim().isEmpty()) {
             Tampilan.gagal("NIDN tidak boleh kosong!");
@@ -242,28 +307,30 @@ public class KRS {
         Scanner input = new Scanner(System.in);
 
         try (Connection conn = Koneksi.connect()) {
-            // Tampilkan semua KRS yang menunggu persetujuan dari dosen yang login
             String sql =
-                "SELECT k.id_krs, m.nim, m.nama, mk.nama_mata_kuliah, k.tanggal_ambil " +
+                "SELECT k.id_krs, m.nim, m.nama, ta.tahun, ta.semester_aktif, " +
+                "k.tanggal_ambil, COUNT(dk.id_detail_krs) AS total_matkul " +
                 "FROM b1.krs k " +
-                "JOIN b1.mahasiswa m     ON k.nim = m.nim " +
-                "JOIN b1.detail_krs dk   ON k.id_krs = dk.id_krs " +
-                "JOIN b1.kelas_kuliah kk ON dk.id_kelas_kuliah = kk.id_kelas_kuliah " +
-                "JOIN b1.mata_kuliah mk  ON kk.id_mata_kuliah = mk.id_mata_kuliah " +
-                "WHERE kk.nidn = ? AND k.status_persetujuan = 'Menunggu' " +
-                "ORDER BY k.tanggal_ambil DESC";
+                "JOIN b1.mahasiswa m         ON k.nim = m.nim " +
+                "JOIN b1.tahun_akademik ta   ON k.id_tahun = ta.id_tahun " +
+                "LEFT JOIN b1.detail_krs dk  ON k.id_krs = dk.id_krs " +
+                "WHERE k.nidn_pembimbing = ? AND k.status_persetujuan = 'Menunggu' " +
+                "GROUP BY k.id_krs, m.nim, m.nama, ta.tahun, ta.semester_aktif, k.tanggal_ambil " +
+                "ORDER BY k.tanggal_ambil";
 
-            PreparedStatement ps1 = conn.prepareStatement(sql);
-            ps1.setString(1, nidn.trim());
-            ResultSet rs = ps1.executeQuery();
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setString(1, nidn.trim());
+            ResultSet rs = ps.executeQuery();
 
             List<String[]> rows = new ArrayList<>();
             while (rs.next()) {
                 rows.add(new String[]{
                     rs.getString("id_krs"),
                     rs.getString("nim"),
-                    rs.getString("nama_mata_kuliah"),
-                    rs.getString("tanggal_ambil")
+                    rs.getString("nama"),
+                    rs.getString("tahun") + " " + rs.getString("semester_aktif"),
+                    rs.getString("tanggal_ambil"),
+                    rs.getString("total_matkul")
                 });
             }
 
@@ -273,29 +340,25 @@ public class KRS {
                 return;
             }
 
-            String[] headers = {"ID KRS", "NIM", "Mata Kuliah", "Tgl Ambil"};
+            String[] headers = {"ID KRS", "NIM", "Nama", "Tahun/Semester", "Tanggal", "Total Matkul"};
             Tampilan.tampilTabel(headers, rows.toArray(new String[0][]));
 
-            String idKRS = inputWajib(input, "Masukkan ID KRS yang akan diproses: ");
+            String idKRS = inputWajib(input, "\nMasukkan ID KRS yang akan diproses : ");
 
-            // Validasi ID KRS harus dari daftar yang tampil (bukan wewenang dosen lain)
+            // Validasi ID KRS harus dari daftar mahasiswa bimbingan dosen ini
             boolean idValid = false;
             for (String[] row : rows) {
-                if (row[0].equals(idKRS)) {
-                    idValid = true;
-                    break;
-                }
+                if (row[0].equals(idKRS)) { idValid = true; break; }
             }
-
             if (!idValid) {
                 Tampilan.gagal("ID KRS tidak ditemukan atau bukan wewenang Anda!");
                 return;
             }
 
-            // Input keputusan dosen
+            // Input keputusan
             String keputusan;
             do {
-                keputusan = inputWajib(input, "Keputusan (Disetujui/Ditolak): ");
+                keputusan = inputWajib(input, "Keputusan (Disetujui/Ditolak)       : ");
                 if (!keputusan.equals("Disetujui") && !keputusan.equals("Ditolak")) {
                     Tampilan.gagal("Keputusan tidak valid! Harus 'Disetujui' atau 'Ditolak'.");
                 }
@@ -319,5 +382,56 @@ public class KRS {
             Tampilan.gagal("Gagal memproses KRS!");
             e.printStackTrace();
         }
+    }
+
+    // ===================== PRIVATE HELPER =====================
+
+    private String cariTahunAktif(Connection conn) throws Exception {
+        ResultSet rs = conn.createStatement().executeQuery(
+            "SELECT id_tahun FROM b1.tahun_akademik WHERE status = 'Aktif' LIMIT 1");
+        return rs.next() ? rs.getString("id_tahun") : null;
+    }
+
+    private String cariProdiMahasiswa(Connection conn, String nim) throws Exception {
+        PreparedStatement ps = conn.prepareStatement(
+            "SELECT id_program_studi FROM b1.mahasiswa WHERE nim = ?");
+        ps.setString(1, nim);
+        ResultSet rs = ps.executeQuery();
+        return rs.next() ? rs.getString("id_program_studi") : null;
+    }
+
+    private boolean sudahAmbilKRS(Connection conn, String nim, String idTahun) throws Exception {
+        PreparedStatement ps = conn.prepareStatement(
+            "SELECT 1 FROM b1.krs WHERE nim = ? AND id_tahun = ?");
+        ps.setString(1, nim);
+        ps.setString(2, idTahun);
+        return ps.executeQuery().next();
+    }
+
+    private List<String> cariKelasAktif(Connection conn, String idProdi, String idTahun) throws Exception {
+        PreparedStatement ps = conn.prepareStatement(
+            "SELECT kk.id_kelas_kuliah " +
+            "FROM b1.kelas_kuliah kk " +
+            "JOIN b1.mata_kuliah mk ON kk.id_mata_kuliah = mk.id_mata_kuliah " +
+            "WHERE mk.id_program_studi = ? AND kk.id_tahun = ?");
+        ps.setString(1, idProdi);
+        ps.setString(2, idTahun);
+        ResultSet rs = ps.executeQuery();
+
+        List<String> hasil = new ArrayList<>();
+        while (rs.next()) hasil.add(rs.getString("id_kelas_kuliah"));
+        return hasil;
+    }
+
+    private String generateIdKRS(Connection conn) throws Exception {
+        ResultSet rs = conn.createStatement().executeQuery("SELECT COUNT(*) FROM b1.krs");
+        rs.next();
+        return String.format("KRS%07d", rs.getInt(1) + 1);
+    }
+
+    private int ambilCounterDetail(Connection conn) throws Exception {
+        ResultSet rs = conn.createStatement().executeQuery("SELECT COUNT(*) FROM b1.detail_krs");
+        rs.next();
+        return rs.getInt(1) + 1;
     }
 }

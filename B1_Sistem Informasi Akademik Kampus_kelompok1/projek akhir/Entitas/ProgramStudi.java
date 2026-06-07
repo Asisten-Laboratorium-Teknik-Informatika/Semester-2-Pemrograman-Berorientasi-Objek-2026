@@ -1,95 +1,113 @@
 package Entitas;
 
+import Fitur.Tampilan;
 import Koneksi.Koneksi;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.util.Scanner;
 
+/**
+ * Class ProgramStudi.
+ *
+ * ENCAPSULATION: Field private, validasi jenjang dan akreditasi terenkapsulasi.
+ */
 public class ProgramStudi {
-    public static void main(String[] args) {
-        Scanner input = new Scanner(System.in);
 
+    // ===================== FIELD (private → Encapsulation) =====================
+    private String idProgramStudi;
+    private String namaProgramStudi;
+    private String fakultas;
+    private String jenjang;
+    private String akreditasi;
+
+    // ===================== CONSTRUCTOR =====================
+    public ProgramStudi() {}
+
+    public ProgramStudi(String idProgramStudi, String namaProgramStudi,
+                        String fakultas, String jenjang, String akreditasi) {
+        this.idProgramStudi   = idProgramStudi;
+        this.namaProgramStudi = namaProgramStudi;
+        this.fakultas         = fakultas;
+        this.jenjang          = jenjang;
+        this.akreditasi       = akreditasi;
+    }
+
+    // ===================== GETTER & SETTER =====================
+    public String getIdProgramStudi()   { return idProgramStudi; }
+    public String getNamaProgramStudi() { return namaProgramStudi; }
+    public String getFakultas()         { return fakultas; }
+    public String getJenjang()          { return jenjang; }
+    public String getAkreditasi()       { return akreditasi; }
+
+    public void setIdProgramStudi(String v)   { this.idProgramStudi = v; }
+    public void setNamaProgramStudi(String v) { this.namaProgramStudi = v; }
+    public void setFakultas(String v)         { this.fakultas = v; }
+    public void setJenjang(String v)          { this.jenjang = v; }
+    public void setAkreditasi(String v)       { this.akreditasi = v; }
+
+    // ===================== VALIDASI =====================
+    public boolean isJenjangValid() {
+        return jenjang != null &&
+            (jenjang.equals("D3") || jenjang.equals("D4") ||
+             jenjang.equals("S1") || jenjang.equals("S2") || jenjang.equals("S3"));
+    }
+
+    public boolean isAkreditasiValid() {
+        return akreditasi != null &&
+            (akreditasi.equalsIgnoreCase("Unggul")      ||
+             akreditasi.equalsIgnoreCase("Baik sekali") ||
+             akreditasi.equalsIgnoreCase("Baik")        ||
+             akreditasi.equalsIgnoreCase("Buruk"));
+    }
+
+    // ===================== TAMBAH PROGRAM STUDI =====================
+    /**
+     * Dipanggil dari Dashboard (Admin → Data Master).
+     * Menggantikan main() lama.
+     */
+    public static void tambahProgramStudi() {
         System.out.println("=== DATA PROGRAM STUDI ===\n");
-        System.out.print("ID Program Studi: ");                           String id_program_studi = input.nextLine().trim();
-        System.out.print("Nama Program Studi: ");                         String nama_program_studi = input.nextLine().trim();
-        System.out.print("Nama Fakultas: ");                              String fakultas = input.nextLine().trim();
-        System.out.print("Jenjang (D3/D4/S1/S2/S3): ");                   String jenjang = input.nextLine().trim().toUpperCase();
-        System.out.print("Akreditasi (Unggul/Baik sekali/Baik/Buruk): "); String akreditasi = input.nextLine().trim();
+        System.out.print("ID Program Studi                               : "); String id   = Fitur.Dashboard.input.nextLine().trim();
+        System.out.print("Nama Program Studi                             : "); String nama = Fitur.Dashboard.input.nextLine().trim();
+        System.out.print("Nama Fakultas                                  : "); String fak  = Fitur.Dashboard.input.nextLine().trim();
+        System.out.print("Jenjang (D3/D4/S1/S2/S3)                      : "); String jen  = Fitur.Dashboard.input.nextLine().trim().toUpperCase();
+        System.out.print("Akreditasi (Unggul/Baik sekali/Baik/Buruk)    : "); String akr  = Fitur.Dashboard.input.nextLine().trim();
 
-        if (id_program_studi.isEmpty()
-            || nama_program_studi.isEmpty()
-            || fakultas.isEmpty()
-            || jenjang.isEmpty()
-            || akreditasi.isEmpty()) {
-
-            System.out.println("Semua data wajib diisi!");
-            return;
+        if (id.isEmpty() || nama.isEmpty() || fak.isEmpty() || jen.isEmpty() || akr.isEmpty()) {
+            Tampilan.gagal("Semua data wajib diisi!"); return;
         }
+        if (id.length() > 10)   { Tampilan.gagal("ID Program Studi maksimal 10 karakter!"); return; }
+        if (nama.length() > 40) { Tampilan.gagal("Nama Program Studi maksimal 40 karakter!"); return; }
+        if (fak.length() > 60)  { Tampilan.gagal("Nama Fakultas maksimal 60 karakter!"); return; }
 
-        if (id_program_studi.length() > 10) {
-            System.out.println("ID Program Studi maksimal 10 karakter!");
-            return;
-        }
+        ProgramStudi ps = new ProgramStudi(id, nama, fak, jen, akr);
+        if (!ps.isJenjangValid())    { Tampilan.gagal("Jenjang tidak valid!"); return; }
+        if (!ps.isAkreditasiValid()) { Tampilan.gagal("Akreditasi tidak valid!"); return; }
 
-        if (nama_program_studi.length() > 40) {
-            System.out.println("Nama Program Studi maksimal 40 karakter!");
-            return;
-        }
+        try (Connection conn = Koneksi.connect()) {
+            if (conn == null) { Tampilan.gagal("Koneksi gagal!"); return; }
 
-        if (fakultas.length() > 60) {
-            System.out.println("Nama Fakultas maksimal 60 karakter!");
-            return;
-        }
-
-        if (!jenjang.equals("D3")
-            && !jenjang.equals("D4")
-            && !jenjang.equals("S1")
-            && !jenjang.equals("S2")
-            && !jenjang.equals("S3")) {
-
-            System.out.println("Jenjang tidak valid!");
-            return;
-        }
-
-        if (!akreditasi.equalsIgnoreCase("Unggul")
-            && !akreditasi.equalsIgnoreCase("Baik sekali")
-            && !akreditasi.equalsIgnoreCase("Baik")
-            && !akreditasi.equalsIgnoreCase("Buruk")) {
-
-            System.out.println("Akreditasi tidak valid!");
-            return;
-        }
-
-        try {
-            Connection conn = Koneksi.connect();
-            
-            if (conn == null) {
-                System.out.println("Koneksi gagal!");
-                return;
-            }
-            
             String query =
-            "INSERT INTO b1.program_studi(id_program_studi, nama_program_studi, fakultas, jenjang, akreditasi) " +
-            "VALUES(?, ?, ?, ?::jenjang_enum, ?::akreditasi_enum)";
-            
-            PreparedStatement ps_program_studi = conn.prepareStatement(query);
-            ps_program_studi.setString(1, id_program_studi); ps_program_studi.setString(2, nama_program_studi);
-            ps_program_studi.setString(3, fakultas);         ps_program_studi.setString(4, jenjang);
-            ps_program_studi.setString(5, akreditasi);
+                "INSERT INTO b1.program_studi(id_program_studi, nama_program_studi, " +
+                "fakultas, jenjang, akreditasi) " +
+                "VALUES(?, ?, ?, ?::b1.jenjang_enum, ?::akreditasi_enum)";
 
-            int baris = ps_program_studi.executeUpdate();
-            
-            if (baris > 0) {
-                System.out.println("\n=== DATA BERHASIL DISIMPAN ===");
-                System.out.println("ID Program Studi : " + id_program_studi);
-                System.out.println("Program Studi    : " + nama_program_studi);
+            PreparedStatement psSql = conn.prepareStatement(query);
+            psSql.setString(1, ps.getIdProgramStudi());
+            psSql.setString(2, ps.getNamaProgramStudi());
+            psSql.setString(3, ps.getFakultas());
+            psSql.setString(4, ps.getJenjang());
+            psSql.setString(5, ps.getAkreditasi());
+
+            if (psSql.executeUpdate() > 0) {
+                Tampilan.sukses("\n=== DATA BERHASIL DISIMPAN ===");
+                System.out.println("ID Program Studi : " + ps.getIdProgramStudi());
+                System.out.println("Program Studi    : " + ps.getNamaProgramStudi());
             } else {
-                System.out.println("Data gagal disimpan.");
+                Tampilan.gagal("Data gagal disimpan.");
             }
 
         } catch (Exception e) {
-            System.out.println("=== Terjadi kesalahan pada data! ===\n" + e.getMessage());
+            Tampilan.gagal("Terjadi kesalahan: " + e.getMessage());
             e.printStackTrace();
         }
     }

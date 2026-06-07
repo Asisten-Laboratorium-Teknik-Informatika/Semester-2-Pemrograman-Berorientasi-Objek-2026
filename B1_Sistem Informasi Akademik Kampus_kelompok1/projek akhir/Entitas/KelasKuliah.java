@@ -2,6 +2,7 @@ package Entitas;
 
 import Fitur.Tampilan;
 import Koneksi.Koneksi;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -9,9 +10,60 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+/**
+ * Class KelasKuliah — entitas mandiri (bukan turunan Pengguna).
+ *
+ * ENCAPSULATION: Semua field private, akses via getter/setter.
+ */
 public class KelasKuliah {
 
-    public static void main(String[] args) {
+    // ===================== FIELD (private → Encapsulation) =====================
+    private String idKelasKuliah;
+    private String idMataKuliah;
+    private String nidn;
+    private String idTahun;
+    private String idRuangan;
+    private String namaKelas;
+    private short  kuota;
+
+    // ===================== CONSTRUCTOR =====================
+    public KelasKuliah() {}
+
+    public KelasKuliah(String idKelasKuliah, String idMataKuliah, String nidn,
+                       String idTahun, String idRuangan, String namaKelas, short kuota) {
+        this.idKelasKuliah = idKelasKuliah;
+        this.idMataKuliah  = idMataKuliah;
+        this.nidn          = nidn;
+        this.idTahun       = idTahun;
+        this.idRuangan     = idRuangan;
+        this.namaKelas     = namaKelas;
+        this.kuota         = kuota;
+    }
+
+    // ===================== GETTER & SETTER (Encapsulation) =====================
+    public String getIdKelasKuliah() { return idKelasKuliah; }
+    public String getIdMataKuliah()  { return idMataKuliah; }
+    public String getNidn()          { return nidn; }
+    public String getIdTahun()       { return idTahun; }
+    public String getIdRuangan()     { return idRuangan; }
+    public String getNamaKelas()     { return namaKelas; }
+    public short  getKuota()         { return kuota; }
+
+    public void setIdKelasKuliah(String idKelasKuliah) { this.idKelasKuliah = idKelasKuliah; }
+    public void setIdMataKuliah(String idMataKuliah)   { this.idMataKuliah = idMataKuliah; }
+    public void setNidn(String nidn)                   { this.nidn = nidn; }
+    public void setIdTahun(String idTahun)             { this.idTahun = idTahun; }
+    public void setIdRuangan(String idRuangan)         { this.idRuangan = idRuangan; }
+    public void setNamaKelas(String namaKelas)         { this.namaKelas = namaKelas; }
+    public void setKuota(short kuota)                  { this.kuota = kuota; }
+
+    // ===================== TAMBAH KELAS KULIAH (pengganti main) =====================
+    /**
+     * Method static untuk input kelas kuliah baru dari konsol.
+     * Dipanggil dari Dashboard.menuDataMaster() oleh Admin.
+     * Semua logika validasi dan query SQL tidak berubah.
+     */
+    public static void tambahKelasKuliah() {
         Scanner input = new Scanner(System.in);
 
         System.out.println("=== DATA KELAS KULIAH ===\n");
@@ -38,46 +90,61 @@ public class KelasKuliah {
             return;
         }
 
-        if (kuota_kelas <= 0)        { System.out.println("Kuota harus lebih dari 0!");        return; }
-        if (kuota_kelas > 100)       { System.out.println("Kuota maksimal 100 mahasiswa!");     return; }
-        if (nama_kelas.length() > 5) { System.out.println("Nama kelas maksimal 5 karakter!");  return; }
+        if (kuota_kelas <= 0)        { System.out.println("Kuota harus lebih dari 0!");       return; }
+        if (kuota_kelas > 100)       { System.out.println("Kuota maksimal 100 mahasiswa!");    return; }
+        if (nama_kelas.length() > 5) { System.out.println("Nama kelas maksimal 5 karakter!"); return; }
 
         try (Connection conn = Koneksi.connect()) {
             if (conn == null) { System.out.println("Koneksi gagal!"); return; }
 
+            // Cek duplikat ID kelas
             String cekKelas = "SELECT COUNT(*) FROM b1.kelas_kuliah WHERE id_kelas_kuliah = ?";
             try (PreparedStatement ps = conn.prepareStatement(cekKelas)) {
                 ps.setString(1, id_kelas_kuliah);
                 ResultSet rs = ps.executeQuery();
-                if (rs.next() && rs.getInt(1) > 0) { System.out.println("ID Kelas Kuliah sudah digunakan!"); return; }
+                if (rs.next() && rs.getInt(1) > 0) {
+                    System.out.println("ID Kelas Kuliah sudah digunakan!"); return;
+                }
             }
 
+            // Cek mata kuliah ada
             String cekMK = "SELECT COUNT(*) FROM b1.mata_kuliah WHERE id_mata_kuliah = ?";
             try (PreparedStatement ps = conn.prepareStatement(cekMK)) {
                 ps.setString(1, id_mata_kuliah);
                 ResultSet rs = ps.executeQuery();
-                if (rs.next() && rs.getInt(1) == 0) { System.out.println("ID Mata Kuliah tidak ditemukan!"); return; }
+                if (rs.next() && rs.getInt(1) == 0) {
+                    System.out.println("ID Mata Kuliah tidak ditemukan!"); return;
+                }
             }
 
+            // Cek dosen ada
             String cekDosen = "SELECT COUNT(*) FROM b1.dosen WHERE nidn = ?";
             try (PreparedStatement ps = conn.prepareStatement(cekDosen)) {
                 ps.setString(1, nidn);
                 ResultSet rs = ps.executeQuery();
-                if (rs.next() && rs.getInt(1) == 0) { System.out.println("NIDN tidak ditemukan!"); return; }
+                if (rs.next() && rs.getInt(1) == 0) {
+                    System.out.println("NIDN tidak ditemukan!"); return;
+                }
             }
 
+            // Cek tahun akademik aktif
             String cekTahun = "SELECT COUNT(*) FROM b1.tahun_akademik WHERE id_tahun = ? AND status = 'Aktif'";
             try (PreparedStatement ps = conn.prepareStatement(cekTahun)) {
                 ps.setString(1, id_tahun);
                 ResultSet rs = ps.executeQuery();
-                if (rs.next() && rs.getInt(1) == 0) { System.out.println("Tahun akademik tidak ditemukan atau tidak aktif!"); return; }
+                if (rs.next() && rs.getInt(1) == 0) {
+                    System.out.println("Tahun akademik tidak ditemukan atau tidak aktif!"); return;
+                }
             }
 
+            // Cek ruangan ada
             String cekRuangan = "SELECT COUNT(*) FROM b1.ruangan WHERE id_ruangan = ?";
             try (PreparedStatement ps = conn.prepareStatement(cekRuangan)) {
                 ps.setString(1, id_ruangan);
                 ResultSet rs = ps.executeQuery();
-                if (rs.next() && rs.getInt(1) == 0) { System.out.println("ID Ruangan tidak ditemukan!"); return; }
+                if (rs.next() && rs.getInt(1) == 0) {
+                    System.out.println("ID Ruangan tidak ditemukan!"); return;
+                }
             }
 
             String query =
@@ -86,10 +153,13 @@ public class KelasKuliah {
                 "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
             try (PreparedStatement ps = conn.prepareStatement(query)) {
-                ps.setString(1, id_kelas_kuliah); ps.setString(2, id_mata_kuliah);
-                ps.setString(3, nidn);            ps.setString(4, id_tahun);
-                ps.setString(5, id_ruangan);      ps.setString(6, nama_kelas);
-                ps.setShort(7, kuota_kelas); // ← diperbaiki
+                ps.setString(1, id_kelas_kuliah);
+                ps.setString(2, id_mata_kuliah);
+                ps.setString(3, nidn);
+                ps.setString(4, id_tahun);
+                ps.setString(5, id_ruangan);
+                ps.setString(6, nama_kelas);
+                ps.setShort(7, kuota_kelas);
 
                 if (ps.executeUpdate() > 0) {
                     System.out.println("\n=== DATA KELAS KULIAH BERHASIL DISIMPAN ===");
@@ -109,33 +179,25 @@ public class KelasKuliah {
         }
     }
 
-    // ===================== LIHAT SEMUA KELAS (Mahasiswa) =====================
+    // ===================== LIHAT KELAS MAHASISWA (kelas yang sudah diambil) =====================
     public void lihatKelas(String nim) {
         try (Connection conn = Koneksi.connect()) {
             String sql =
-                "SELECT kk.id_kelas_kuliah, mk.nama_mata_kuliah, d.nama AS nama_dosen, " +
-                "r.nama_ruangan, kk.nama_kelas, kk.kuota, " +
-                "COALESCE((SELECT COUNT(*) FROM b1.detail_krs dk " +
-                "   JOIN b1.krs k ON dk.id_krs = k.id_krs " +
-                "   WHERE dk.id_kelas_kuliah = kk.id_kelas_kuliah " +
-                "   AND k.status_persetujuan = 'Disetujui'), 0) AS terisi " +
-                "FROM b1.kelas_kuliah kk " +
-                "JOIN b1.mata_kuliah mk      ON kk.id_mata_kuliah = mk.id_mata_kuliah " +
-                "JOIN b1.dosen d             ON kk.nidn = d.nidn " +
-                "JOIN b1.ruangan r           ON kk.id_ruangan = r.id_ruangan " +
-                "JOIN b1.tahun_akademik ta   ON kk.id_tahun = ta.id_tahun " +
-                "WHERE ta.status = 'Aktif' " +
-                "AND kk.id_mata_kuliah NOT IN ( " +
-                "   SELECT kk2.id_mata_kuliah " +
-                "   FROM b1.detail_krs dk2 " +
-                "   JOIN b1.krs k2           ON dk2.id_krs = k2.id_krs " +
-                "   JOIN b1.kelas_kuliah kk2 ON dk2.id_kelas_kuliah = kk2.id_kelas_kuliah " +
-                "   WHERE k2.nim = ? AND k2.status_persetujuan != 'Ditolak' " +
-                ") " +
+                "SELECT kk.id_kelas_kuliah, mk.nama_mata_kuliah, mk.sks, " +
+                "d.nama AS nama_dosen, r.nama_ruangan, kk.nama_kelas, " +
+                "k.status_persetujuan " +
+                "FROM b1.detail_krs dk " +
+                "JOIN b1.krs k           ON dk.id_krs = k.id_krs " +
+                "JOIN b1.kelas_kuliah kk ON dk.id_kelas_kuliah = kk.id_kelas_kuliah " +
+                "JOIN b1.mata_kuliah mk  ON kk.id_mata_kuliah = mk.id_mata_kuliah " +
+                "JOIN b1.dosen d         ON kk.nidn = d.nidn " +
+                "JOIN b1.ruangan r       ON kk.id_ruangan = r.id_ruangan " +
+                "JOIN b1.tahun_akademik ta ON kk.id_tahun = ta.id_tahun " +
+                "WHERE k.nim = ? AND ta.status = 'Aktif' " +
                 "ORDER BY mk.nama_mata_kuliah";
 
             PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setString(1, nim); // ← tambahkan ini
+            ps.setString(1, nim);
             ResultSet rs = ps.executeQuery();
 
             List<String[]> rows = new ArrayList<>();
@@ -143,18 +205,19 @@ public class KelasKuliah {
                 rows.add(new String[]{
                     rs.getString("id_kelas_kuliah"),
                     rs.getString("nama_mata_kuliah"),
+                    rs.getString("sks"),
                     rs.getString("nama_dosen"),
                     rs.getString("nama_ruangan"),
                     rs.getString("nama_kelas"),
-                    rs.getInt("terisi") + "/" + rs.getInt("kuota")
+                    rs.getString("status_persetujuan")
                 });
             }
 
-            System.out.println("\n=== DAFTAR KELAS KULIAH TERSEDIA ===");
+            System.out.println("\n=== KELAS KULIAH SAYA ===");
             if (rows.isEmpty()) {
-                Tampilan.peringatan("Tidak ada kelas kuliah yang tersedia.");
+                Tampilan.peringatan("Belum ada kelas kuliah. Silakan ambil KRS terlebih dahulu.");
             } else {
-                String[] headers = {"ID Kelas", "Mata Kuliah", "Dosen", "Ruangan", "Kelas", "Terisi"};
+                String[] headers = {"ID Kelas", "Mata Kuliah", "SKS", "Dosen", "Ruangan", "Kelas", "Status KRS"};
                 Tampilan.tampilTabel(headers, rows.toArray(new String[0][]));
             }
 
@@ -163,7 +226,6 @@ public class KelasKuliah {
             e.printStackTrace();
         }
     }
-
     // ===================== LIHAT KELAS BY DOSEN =====================
     public void lihatKelasByDosen(String nidn) {
         if (nidn == null || nidn.trim().isEmpty()) {

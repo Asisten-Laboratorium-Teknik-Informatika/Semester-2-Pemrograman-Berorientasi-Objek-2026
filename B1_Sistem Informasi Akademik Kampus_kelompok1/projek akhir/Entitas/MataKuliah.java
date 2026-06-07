@@ -7,91 +7,126 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.Scanner;
 
+/**
+ * Class MataKuliah — entitas mandiri (bukan turunan Pengguna).
+ *
+ * ENCAPSULATION: Semua field private, akses via getter/setter.
+ */
 public class MataKuliah {
-    public static void main(String[] args) {
+
+    // ===================== FIELD (private → Encapsulation) =====================
+    private String idMataKuliah;
+    private String idProgramStudi;
+    private String namaMataKuliah;
+    private short  sks;
+    private short  semesterKe;
+
+    // ===================== CONSTRUCTOR =====================
+    public MataKuliah() {}
+
+    public MataKuliah(String idMataKuliah, String idProgramStudi,
+                      String namaMataKuliah, short sks, short semesterKe) {
+        this.idMataKuliah   = idMataKuliah;
+        this.idProgramStudi = idProgramStudi;
+        this.namaMataKuliah = namaMataKuliah;
+        this.sks            = sks;
+        this.semesterKe     = semesterKe;
+    }
+
+    // ===================== GETTER & SETTER (Encapsulation) =====================
+    public String getIdMataKuliah()   { return idMataKuliah; }
+    public String getIdProgramStudi() { return idProgramStudi; }
+    public String getNamaMataKuliah() { return namaMataKuliah; }
+    public short  getSks()            { return sks; }
+    public short  getSemesterKe()     { return semesterKe; }
+
+    public void setIdMataKuliah(String idMataKuliah)     { this.idMataKuliah = idMataKuliah; }
+    public void setIdProgramStudi(String idProgramStudi) { this.idProgramStudi = idProgramStudi; }
+    public void setNamaMataKuliah(String namaMataKuliah) { this.namaMataKuliah = namaMataKuliah; }
+    public void setSks(short sks)                        { this.sks = sks; }
+    public void setSemesterKe(short semesterKe)          { this.semesterKe = semesterKe; }
+
+    // ===================== VALIDASI (terenkapsulasi) =====================
+    public boolean isSksValid() {
+        return sks == 1 || sks == 2 || sks == 3;
+    }
+
+    public boolean isSemesterValid() {
+        return semesterKe >= 1 && semesterKe <= 14;
+    }
+
+    // ===================== TAMBAH MATA KULIAH (pengganti main) =====================
+    /**
+     * Method static untuk input mata kuliah baru dari konsol.
+     * Dipanggil dari Dashboard.menuDataMaster() oleh Admin.
+     * Semua logika validasi dan query SQL tidak berubah.
+     */
+    public static void tambahMataKuliah() {
         Scanner input = new Scanner(System.in);
 
         System.out.println("=== DATA MATA KULIAH ===\n");
-        System.out.print("ID Mata Kuliah: ");      String id_mata_kuliah = input.nextLine().trim();
-        System.out.print("ID Program Studi: ");    String id_program_studi = input.nextLine().trim();
-        System.out.print("NIDN: ");                String nidn = input.nextLine().trim();
-        System.out.print("Nama mata kuliah: ");    String nama_mata_kuliah = input.nextLine().trim();
-        System.out.print("Jumlah SKS: ");          String sks = input.nextLine().trim();
-        System.out.print("Semester: ");            String semester_ke = input.nextLine().trim();
-       
-        if (id_mata_kuliah.isEmpty()
-            || id_program_studi.isEmpty()
-            || nidn.isEmpty()
-            || nama_mata_kuliah.isEmpty()
-            || sks.isEmpty()
-            || semester_ke.isEmpty()) {
+        System.out.print("ID Mata Kuliah: ");   String idMK     = input.nextLine().trim();
+        System.out.print("ID Program Studi: "); String idPS     = input.nextLine().trim();
+        System.out.print("Nama Mata Kuliah: "); String nama     = input.nextLine().trim();
+        System.out.print("Jumlah SKS: ");       String sks      = input.nextLine().trim();
+        System.out.print("Semester: ");         String semester = input.nextLine().trim();
 
+        if (idMK.isEmpty() || idPS.isEmpty() || nama.isEmpty()
+                || sks.isEmpty() || semester.isEmpty()) {
             System.out.println("Semua data wajib diisi!");
             return;
         }
-    
-        short semesterKe;
-    
-        try {
-            semesterKe = Short.parseShort(input.nextLine().trim());
-        } catch (NumberFormatException e) {
-            System.out.println("Semester harus berupa angka!");
-            return;
+
+        short sksVal, semVal;
+        try { sksVal = Short.parseShort(sks); }
+        catch (NumberFormatException e) { System.out.println("SKS harus berupa angka!"); return; }
+
+        try { semVal = Short.parseShort(semester); }
+        catch (NumberFormatException e) { System.out.println("Semester harus berupa angka!"); return; }
+
+        // Buat objek dan validasi lewat method (Encapsulation)
+        MataKuliah mk = new MataKuliah(idMK, idPS, nama, sksVal, semVal);
+
+        if (!mk.isSksValid()) {
+            System.out.println("SKS harus 1, 2, atau 3!"); return;
+        }
+        if (!mk.isSemesterValid()) {
+            System.out.println("Semester harus antara 1 sampai 14!"); return;
         }
 
-        if (semesterKe < 1 || semesterKe > 14) {
-            System.out.println("Semester harus antara 1 sampai 14!");
-            return;
-        }
-
-        if (!sks.equals("1")
-            && !sks.equals("2")
-            && !sks.equals("3")) {
-
-            System.out.println("SKS harus 1, 2, atau 3!");
-            return;
-        }
-    
         try {
             Connection conn = Koneksi.connect();
-            
-            if (conn == null) {
-                System.out.println("Koneksi gagal!");
-                return;
-            }
-        
-            String cekMk =
-                "SELECT COUNT(*) FROM b1.mata_kuliah WHERE id_mata_kuliah = ?";
+            if (conn == null) { System.out.println("Koneksi gagal!"); return; }
 
-            try (PreparedStatement psCek = conn.prepareStatement(cekMk)) {
-                psCek.setString(1, id_mata_kuliah);
-
+            // Cek duplikat ID
+            try (PreparedStatement psCek = conn.prepareStatement(
+                    "SELECT COUNT(*) FROM b1.mata_kuliah WHERE id_mata_kuliah = ?")) {
+                psCek.setString(1, mk.getIdMataKuliah());
                 ResultSet rs = psCek.executeQuery();
-
                 if (rs.next() && rs.getInt(1) > 0) {
-                    System.out.println("ID Mata Kuliah sudah digunakan!");
-                    return;
+                    System.out.println("ID Mata Kuliah sudah digunakan!"); return;
                 }
             }
-        
+
             String query =
-            "INSERT INTO b1.mata_kuliah(id_mata_kuliah, id_program_studi, nidn, nama_mata_kuliah, sks, semester_ke) " +
-            "VALUES(?, ?, ?, ?, ?::sks_enum, ?)";
+                "INSERT INTO b1.mata_kuliah(id_mata_kuliah, id_program_studi, nama_mata_kuliah, sks, semester_ke) " +
+                "VALUES(?, ?, ?, ?::b1.sks_enum, ?)";
 
-            PreparedStatement ps_mata_kuliah = conn.prepareStatement(query);
-            ps_mata_kuliah.setString(1, id_mata_kuliah); ps_mata_kuliah.setString(2, id_program_studi);
-            ps_mata_kuliah.setString(3, nidn);           ps_mata_kuliah.setString(4, nama_mata_kuliah);
-            ps_mata_kuliah.setString(5, sks);            ps_mata_kuliah.setShort(6, semesterKe);
+            PreparedStatement ps = conn.prepareStatement(query);
+            ps.setString(1, mk.getIdMataKuliah());
+            ps.setString(2, mk.getIdProgramStudi());
+            ps.setString(3, mk.getNamaMataKuliah());
+            ps.setString(4, String.valueOf(mk.getSks()));
+            ps.setShort(5, mk.getSemesterKe());
 
-            int baris = ps_mata_kuliah.executeUpdate();
-            
+            int baris = ps.executeUpdate();
             if (baris > 0) {
-                    System.out.println("\n=== DATA MATA KULIAH BERHASIL DISIMPAN ===");
-                    System.out.println("ID MK        : " + id_mata_kuliah);
-                    System.out.println("Nama MK      : " + nama_mata_kuliah);
-                    System.out.println("SKS          : " + sks);
-                    System.out.println("Semester     : " + semesterKe);
-            }    
+                System.out.println("\n=== DATA MATA KULIAH BERHASIL DISIMPAN ===");
+                System.out.println("ID MK    : " + mk.getIdMataKuliah());
+                System.out.println("Nama MK  : " + mk.getNamaMataKuliah());
+                System.out.println("SKS      : " + mk.getSks());
+                System.out.println("Semester : " + mk.getSemesterKe());
+            }
 
         } catch (Exception e) {
             System.out.println("=== Terjadi kesalahan pada data! ===\n" + e.getMessage());
